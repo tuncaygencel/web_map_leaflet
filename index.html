@@ -42,6 +42,13 @@
             cursor: pointer;
         }
 
+        .download_btn{
+            position: fixed;
+            top: 10px;
+            right: calc( var(--right_container) + 10px );
+            z-index: 9999999;
+        }
+
 
         @media (max-width:600px){
             #map-holder {
@@ -61,6 +68,7 @@
 
 </body>
 <div id="container-fluid">
+    <button onclick="download_file()" type="button" class="btn btn-danger btn-sm download_btn">Download File</button>
     <div id="map-holder">
         <div id="map">
 
@@ -260,6 +268,12 @@ function create_marker_popup(id, lat, lng){
 
 function clear_markers(){
     markerlayergroup.clearLayers();
+}
+
+function download_file(){
+
+    window.open("/download_file.php", '_blank');
+
 }
 
 </script>

@@ -125,5 +125,26 @@ class coord_handle {
     }
 
 
+    public function download_file(){
+
+        $attachment_location = self::$full_file_path;
+
+        if (file_exists($attachment_location)) {
+            header($_SERVER["SERVER_PROTOCOL"] . " 200 OK");
+            header("Cache-Control: public");
+            header("Content-Type: application/json");
+            header("Content-Transfer-Encoding: Binary");
+            header("Content-Length:".filesize($attachment_location));
+            header("Content-Disposition: attachment; filename=file.json");
+            readfile($attachment_location);
+            die();  
+        } else {
+            die('Error: File not found.');
+        }
+
+
+    }
+
+
 }
 ?>
