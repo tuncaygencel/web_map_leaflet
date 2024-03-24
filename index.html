@@ -1,0 +1,268 @@
+<html>
+<head>
+    <title>Web Task</title>
+    <style>
+        
+        :root {
+            --right_container: 300px;
+            --mobile-right_container-height: 200px;
+        }
+
+        body{
+            margin:0;
+            padding:0;
+        }
+
+        #container-fluid{
+            width:100% !important;
+        }
+
+        #map-holder { 
+            height: 100%; 
+            width: calc( 100% - var(--right_container) );
+            float:left;
+        }
+        
+        #points-holder{
+            width:var(--right_container);
+            height:100%;
+            float:right;
+        }
+
+        #map, #points{
+            width:100%;
+            height:100%;
+        }
+        #points{
+            overflow-y: scroll;
+        }
+
+
+        .cursor-pointer{
+            cursor: pointer;
+        }
+
+
+        @media (max-width:600px){
+            #map-holder {
+                width:100%;
+                height: calc( 100% - var(--mobile-right_container-height) );
+            }
+
+            #points-holder{
+                width:100%;
+                height:var(--mobile-right_container-height);
+            }
+        }
+
+    </style>
+
+</head>
+
+</body>
+<div id="container-fluid">
+    <div id="map-holder">
+        <div id="map">
+
+        </div>
+    </div>
+    <div id="points-holder" >
+        <div id="points">
+
+        </div>
+    </div>
+</div>
+
+<div class="toast-container position-fixed bottom-0 end-0 p-3"  style="z-index:999999">
+    <div id="liveToast" class="toast align-items-center bg-primary text-light border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body"></div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+  </div>
+</div>
+
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+crossorigin=""></script>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+<script>
+
+let start_coord={"lat":39.334507, "lng":35.295085};
+let zoom=19;
+var map = L.map('map');
+const toastLive = document.getElementById('liveToast');
+const toastBootstrap = bootstrap.Toast.getOrCreateInstance(toastLive)
+
+document.onload = start_operations();
+
+async function start_operations(){
+
+    await load_map();
+    await load_points();
+}
+
+
+async function load_map(){
+    await map.setView([start_coord.lat, start_coord.lng], 6);
+    await L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom:zoom ,
+        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
+
+}
+
+var popup = L.popup();
+var markerlayergroup = L.layerGroup().addTo(map);
+
+
+function onMapClick(e) {
+
+    let save_button='<h5>lat:'+e.latlng.lat.toFixed(6).toString()+', long:'+e.latlng.lng.toFixed(6).toString()+'</h5>';
+    save_button+='<button type="button" class="btn btn-primary w-100" onclick="save_point('+e.latlng.lat.toString()+','+e.latlng.lng.toString()+')">Save</button>';
+
+    popup.setLatLng(e.latlng).setContent( save_button).openOn(map);
+
+    clear_markers();
+
+}
+
+map.on('click', onMapClick);
+
+function save_point(lat, lng){
+
+    $.ajax({
+        type: "post", url: "/save_point.php",
+        dataType: "json",
+        data:{lat:lat, lng:lng},
+        success: function (res) {
+            
+            if(res.res==1){
+                load_points();
+                $(".toast-body").text(res.exp);
+                toastBootstrap.show();
+            }else{
+                alert(res.exp);
+            }
+
+        },
+        error: function (request, status, error) {
+            alert("An error occurred while retrieving the coordinates...")
+            console.log(request.responseText);
+        }
+    });
+
+
+}
+
+function delete_point(id){
+
+    $.ajax({
+        type: "post", url: "/delete_point.php",
+        dataType: "json",
+        data:{id:id},
+        success: function (res) {
+            
+            if(res.res==1){
+                load_points();
+                $(".toast-body").text(res.exp);
+                toastBootstrap.show();
+            }else{
+                alert(res.exp);
+            }
+
+        },
+        error: function (request, status, error) {
+            alert("An error occurred while retrieving the coordinates...")
+            console.log(request.responseText);
+        }
+    });
+
+
+}
+
+
+async function load_points(){
+    
+    await $.ajax({
+        type: "get", url: "/list_all.php",
+        dataType: "json",
+        success: function (data) {
+            list_all_points(data);
+        },
+        error: function (request, status, error) {
+            alert("An error occurred while retrieving the coordinates...")
+            console.log(request.responseText);
+        }
+    });
+
+}
+
+
+function list_all_points(points){
+
+    $("#points").html('');
+
+    let points_html='<ol class="list-group list-group-numbered">';
+
+    $.each(points, function( index, point ) {
+       
+        console.log(points);
+ 
+        points_html+='<li class="list-group-item d-flex justify-content-between align-items-start">';
+        points_html+='<div class="ms-2 me-auto cursor-pointer" onclick="show_on_map(this)" data-id="'+point.id+'" data-lat="'+point.lat+'" data-lng="'+point.lng+'">';
+        points_html+='<div class="fw-bold">lat:'+point.lat+', lng:'+point.lng+'</div>';
+        points_html+='</div>';
+        points_html+='<span class="badge bg-danger rounded-pill" role="button" onclick="delete_point('+point.id+')"> Delete </span>';
+        points_html+='</li>';
+
+    });
+
+    points_html+='</ol>';
+
+    $("#points").append(points_html);
+
+}
+
+function show_on_map(this_data){
+
+    let id=$(this_data).attr('data-id');
+    let lat=$(this_data).attr('data-lat');
+    let lng=$(this_data).attr('data-lng');
+
+    let active_div=$(this_data).parent();
+
+    $(".list-group-item").not(active_div).removeClass("active"); 
+    active_div.addClass("active");
+    
+
+    console.log(lat);
+
+    create_marker_popup(id, lat, lng);
+
+}
+
+function create_marker_popup(id, lat, lng){
+    
+    clear_markers();
+    var marker = L.marker([lat, lng]).addTo(map);
+    marker.bindPopup('<h6>id:'+id+', lat:'+lat+', lng:'+lng+'</h6>').openPopup();
+    markerlayergroup.addLayer(marker);
+    
+
+}
+
+function clear_markers(){
+    markerlayergroup.clearLayers();
+}
+
+</script>
+
+</body>
+</html>
